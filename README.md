@@ -1,2 +1,3 @@
-# linux-utils
-Util scripts, alias and other more for linux administration 
+# Linux utils repo
+
+Util scripts, alias and other more for Linux administration 

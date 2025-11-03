@@ -1,0 +1,23 @@
+#!/bin/bash
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${GREEN}Services${NC}"
+
+FAILED_SERVICES=$(systemctl list-units --state=failed --no-pager --no-legend 2>/dev/null | wc -l)
+
+if [ $FAILED_SERVICES -eq 0 ]; then
+    echo -e "  Status: ${GREEN}✓ All services running${NC}"
+else
+    echo -e "  Status: ${RED}✗ ${FAILED_SERVICES} service(s) failed${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Failed services:${NC}"
+    systemctl list-units --state=failed --no-pager --no-legend 2>/dev/null | while read line; do
+        SERVICE=$(echo $line | awk '{print $1}')
+        echo -e "    ${RED}●${NC} $SERVICE"
+    done
+fi
+
+echo ""

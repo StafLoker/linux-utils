@@ -1,0 +1,22 @@
+#!/bin/bash
+GREEN='\033[0;32m'
+PURPLE='\033[0;35m'
+NC='\033[0m'
+
+USERS_NOW=$(who | wc -l)
+
+echo -e "${GREEN}Users${NC}"
+echo -e "  Currently logged in: ${PURPLE}${USERS_NOW}${NC}"
+
+if [ $USERS_NOW -gt 0 ]; then
+    who | while read line; do
+        echo "    $line"
+    done
+fi
+
+echo ""
+echo -e "${GREEN}Last Logins${NC}"
+last -n 5 -a -F | head -n 5 | while read line; do
+    echo "  $line"
+done
+echo ""

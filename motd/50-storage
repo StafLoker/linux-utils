@@ -1,0 +1,36 @@
+#!/bin/bash
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${GREEN}Storage${NC}"
+
+df -h | grep -E '^/dev/(sd|nvme|vd|hd|mmcblk)' | while read line; do
+    DEVICE=$(echo $line | awk '{print $1}')
+    SIZE=$(echo $line | awk '{print $2}')
+    USED=$(echo $line | awk '{print $3}')
+    AVAIL=$(echo $line | awk '{print $4}')
+    USAGE=$(echo $line | awk '{print $5}' | sed 's/%//')
+    MOUNT=$(echo $line | awk '{print $6}')
+    
+    if [ $USAGE -lt 50 ]; then 
+        COLOR=$GREEN
+    elif [ $USAGE -lt 80 ]; then 
+        COLOR=$YELLOW
+    else 
+        COLOR=$RED
+    fi
+    
+    if [ "$MOUNT" = "/" ]; then
+        MOUNT_NAME="Root (/)"
+    else
+        MOUNT_NAME="$MOUNT"
+    fi
+    
+    printf "  %-15s ${COLOR}%3s%%${NC} (%s / %s) ${CYAN}%s${NC}\n" \
+        "$MOUNT_NAME" "$USAGE" "$USED" "$SIZE" "$DEVICE"
+done
+
+echo ""

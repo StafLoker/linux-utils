@@ -1,0 +1,16 @@
+#!/bin/bash
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+HOSTNAME=$(hostname)
+OS=$(grep PRETTY_NAME /etc/os-release | cut -d '"' -f 2)
+KERNEL=$(uname -r)
+UPTIME=$(uptime -p | sed 's/up //')
+
+echo -e "${GREEN}System Information${NC}"
+echo -e "  Hostname: ${CYAN}${HOSTNAME}${NC}"
+echo -e "  OS:       ${OS}"
+echo -e "  Kernel:   ${KERNEL}"
+echo -e "  Uptime:   ${UPTIME}"
+echo ""
