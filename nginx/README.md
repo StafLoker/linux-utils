@@ -2,6 +2,18 @@
 
 Templates and snippets for nginx reverse proxy configurations.
 
+## Quick Install & Upgrade
+
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/nginx/install.sh)"
+```
+
+Or using wget:
+
+```bash
+sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/StafLoker/linux-utils/main/nginx/install.sh)"
+```
+
 ## Templates
 
 ### template-http.conf

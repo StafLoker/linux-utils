@@ -2,6 +2,35 @@
 
 Interactive utility scripts for common system administration tasks.
 
+## Quick Install & Upgrade
+
+Download scripts to your home directory:
+
+```bash
+# Using curl
+curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/dnsr.sh -o ~/dnsr.sh
+curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/nginxh.sh -o ~/nginxh.sh
+chmod +x ~/dnsr.sh ~/nginxh.sh
+```
+
+Or using wget:
+
+```bash
+# Using wget
+wget -q https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/dnsr.sh -O ~/dnsr.sh
+wget -q https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/nginxh.sh -O ~/nginxh.sh
+chmod +x ~/dnsr.sh ~/nginxh.sh
+```
+
+Add to PATH (optional):
+
+```bash
+mkdir -p ~/scripts
+mv ~/dnsr.sh ~/nginxh.sh ~/scripts/
+echo 'export PATH="$HOME/scripts:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
 ## Scripts
 
 ### dnsr.sh

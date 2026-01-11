@@ -2,7 +2,19 @@
 
 Message of the Day scripts that display system information on login.
 
-## Installation
+## Quick Install & Upgrade
+
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/motd/install.sh)"
+```
+
+Or using wget:
+
+```bash
+sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/StafLoker/linux-utils/main/motd/install.sh)"
+```
+
+## Manual Installation
 
 Copy scripts to `/etc/update-motd.d/`:
 ```bash
