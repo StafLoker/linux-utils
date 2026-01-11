@@ -99,24 +99,9 @@ customize_banner() {
     # Generate the banner with figlet
     BANNER_OUTPUT=$(figlet -f $FONT "$banner_text")
 
-    # Create a temporary file with the new banner
-    TMP_BANNER=$(mktemp)
-    echo "$BANNER_OUTPUT" > "$TMP_BANNER"
-
-    # Replace the content between 'cat << 'BANNER'' and 'BANNER' with the new banner
-    # First, extract everything before the banner
-    sed -n "1,/cat << 'BANNER'/p" "$INSTALL_DIR/10-header" > "$INSTALL_DIR/10-header.tmp"
-
-    # Add the new banner content
-    cat "$TMP_BANNER" >> "$INSTALL_DIR/10-header.tmp"
-
-    # Add the closing BANNER tag and everything after
-    echo "BANNER" >> "$INSTALL_DIR/10-header.tmp"
-    sed -n "/^BANNER$/,\$p" "$INSTALL_DIR/10-header" | tail -n +2 >> "$INSTALL_DIR/10-header.tmp"
-
-    # Replace the original file
-    mv "$INSTALL_DIR/10-header.tmp" "$INSTALL_DIR/10-header"
-    rm -f "$TMP_BANNER"
+    # Replace banner content using sed
+    sed -i "/cat << 'BANNER'/,/^BANNER$/{//!d; /cat << 'BANNER'/r /dev/stdin;}" \
+        "$INSTALL_DIR/10-header" <<< "$BANNER_OUTPUT"
 
     echo -e "\n${GREEN}✓ Banner configured${NC}"
     echo -e "${YELLOW}Preview:${NC}"
