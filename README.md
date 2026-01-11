@@ -11,8 +11,8 @@ Message of the Day (MOTD) scripts that display system information on login. Thes
 - **30-resources**: System resource information
 - **40-network**: Network configuration details
 - **50-storage**: Disk and storage usage
-- **55-services**: Running services status
-- **60-users**: Active user sessions
+- **60-services**: Running services status
+- **70-users**: Active user sessions
 
 ### [os/](os/)
 Operating system configuration files:
