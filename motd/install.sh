@@ -96,12 +96,16 @@ customize_banner() {
     read -p "Banner text [Server]: " banner_text
     banner_text=${banner_text:-"Server"}
 
-    # Generate the banner with figlet
+    # Generate the banner
     BANNER_OUTPUT=$(figlet -f $FONT "$banner_text")
 
-    # Replace banner content using sed
-    sed -i "/cat << 'BANNER'/,/^BANNER$/{//!d; /cat << 'BANNER'/r /dev/stdin;}" \
-        "$INSTALL_DIR/10-header" <<< "$BANNER_OUTPUT"
+    # Replace banner content
+    {
+        sed -n "1,/cat << 'BANNER'/p" "$INSTALL_DIR/10-header"
+        echo "$BANNER_OUTPUT"
+        echo "BANNER"
+        sed -n "/^BANNER$/,\$p" "$INSTALL_DIR/10-header" | tail -n +2
+    } > "$INSTALL_DIR/10-header.tmp" && mv "$INSTALL_DIR/10-header.tmp" "$INSTALL_DIR/10-header"
 
     echo -e "\n${GREEN}✓ Banner configured${NC}"
     echo -e "${YELLOW}Preview:${NC}"
