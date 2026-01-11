@@ -99,13 +99,17 @@ customize_banner() {
     # Generate the banner
     BANNER_OUTPUT=$(figlet -f $FONT "$banner_text")
 
-    # Replace banner content
+    # Replace banner content preserving permissions
     {
         sed -n "1,/cat << 'BANNER'/p" "$INSTALL_DIR/10-header"
         echo "$BANNER_OUTPUT"
         echo "BANNER"
         sed -n "/^BANNER$/,\$p" "$INSTALL_DIR/10-header" | tail -n +2
-    } > "$INSTALL_DIR/10-header.tmp" && mv "$INSTALL_DIR/10-header.tmp" "$INSTALL_DIR/10-header"
+    } > "$INSTALL_DIR/10-header.tmp"
+
+    # Preserve permissions and replace file
+    chmod --reference="$INSTALL_DIR/10-header" "$INSTALL_DIR/10-header.tmp"
+    mv "$INSTALL_DIR/10-header.tmp" "$INSTALL_DIR/10-header"
 
     echo -e "\n${GREEN}✓ Banner configured${NC}"
     echo -e "${YELLOW}Preview:${NC}"
