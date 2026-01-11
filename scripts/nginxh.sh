@@ -89,9 +89,9 @@ test_and_reload_nginx() {
 show_sites() {
     echo -e "\n=== Current Nginx Sites ==="
     if [ -d "$SITES_ENABLED" ] && [ "$(ls -A "$SITES_ENABLED" 2>/dev/null)" ]; then
-        for site in "$SITES_ENABLED"/*.conf; do
+        for site in "$SITES_ENABLED"/*; do
             [ -e "$site" ] || continue
-            fqdn=$(basename "$site" .conf)
+            fqdn=$(basename "$site")
 
             if [ -L "$site" ]; then
                 target=$(readlink "$site")
@@ -158,7 +158,7 @@ add_site() {
     fi
 
     # Enable site
-    ln -sf "$config_file" "$SITES_ENABLED/${domain}.conf"
+    ln -sf "$config_file" "$SITES_ENABLED/${domain}"
 
     # Test and reload
     if test_and_reload_nginx; then
@@ -173,8 +173,8 @@ delete_site() {
     read -p "Subdomain to delete (@ for root domain): " subdomain
     domain=$(get_fqdn "$subdomain")
 
-    config_file="$SITES_AVAILABLE/${domain}.conf"
-    enabled_link="$SITES_ENABLED/${domain}.conf"
+    config_file="$SITES_AVAILABLE/${domain}"
+    enabled_link="$SITES_ENABLED/${domain}"
 
     if [ ! -f "$config_file" ]; then
         echo "Error: Site $domain not found"
@@ -204,7 +204,7 @@ modify_site() {
     read -p "Subdomain to modify (@ for root domain): " subdomain
     domain=$(get_fqdn "$subdomain")
 
-    config_file="$SITES_AVAILABLE/${domain}.conf"
+    config_file="$SITES_AVAILABLE/${domain}"
 
     if [ ! -f "$config_file" ]; then
         echo "Error: Site $domain not found"
