@@ -136,7 +136,7 @@ add_site() {
         return 1
     fi
 
-    config_file="$SITES_AVAILABLE/${domain}.conf"
+    config_file="$SITES_AVAILABLE/${domain}"
 
     # Create config from template
     sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$template" > "$config_file"
