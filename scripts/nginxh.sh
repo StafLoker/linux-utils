@@ -6,7 +6,27 @@ TEMPLATES_DIR="/etc/nginx/templates"
 DOMAIN="domain.tld"
 
 check_root() {
-    [ "$EUID" -ne 0 ] && echo "Run as root" && exit 1
+    if [ "$EUID" -ne 0 ]; then
+        echo "Run as root"
+        exit 1
+    fi
+}
+
+check_certbot() {
+    if ! command -v certbot &> /dev/null; then
+        echo "Error: certbot is not installed"
+        echo "Install it with: sudo apt install certbot python3-certbot-nginx"
+        return 1
+    fi
+
+    # Check if nginx plugin is available
+    if ! certbot plugins 2>/dev/null | grep -q "nginx"; then
+        echo "Error: certbot nginx plugin is not installed"
+        echo "Install it with: sudo apt install python3-certbot-nginx"
+        return 1
+    fi
+
+    return 0
 }
 
 # Convert subdomain to FQDN (@ means root domain)
@@ -123,49 +143,95 @@ add_site() {
     read -p "Enable WebSocket support? [y/N]: " ws_choice
     read -p "Enable IP ACL restrictions? [y/N]: " acl_choice
 
-    if [ "$ssl_choice" = "2" ]; then
-        template="$TEMPLATES_DIR/template-https.conf"
-        use_ssl=true
-    else
-        template="$TEMPLATES_DIR/template-http.conf"
-        use_ssl=false
+    # Check if templates exist
+    if [ ! -f "$TEMPLATES_DIR/template-http.conf" ]; then
+        echo "Error: HTTP template not found at $TEMPLATES_DIR/template-http.conf"
+        return 1
     fi
 
-    if [ ! -f "$template" ]; then
-        echo "Error: Template not found at $template"
-        return 1
+    if [ "$ssl_choice" = "2" ]; then
+        if [ ! -f "$TEMPLATES_DIR/template-https.conf" ]; then
+            echo "Error: HTTPS template not found at $TEMPLATES_DIR/template-https.conf"
+            return 1
+        fi
+
+        # Check certbot installation
+        if ! check_certbot; then
+            return 1
+        fi
+
+        use_ssl=true
+    else
+        use_ssl=false
     fi
 
     config_file="$SITES_AVAILABLE/${domain}"
 
-    # Create config from template
-    sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$template" > "$config_file"
-
-    # Apply snippets based on user choices
-    apply_snippets "$config_file" "$ws_choice" "$acl_choice" "$use_ssl"
-
-    # Obtain SSL certificate if HTTPS
     if [ "$use_ssl" = true ]; then
+        # For HTTPS: First create HTTP config to get certificate
         echo ""
-        echo "Obtaining SSL certificate with certbot..."
+        echo "Step 1/3: Creating temporary HTTP configuration..."
+        sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
+
+        # Enable site temporarily
+        ln -sf "$config_file" "$SITES_ENABLED/${domain}"
+
+        # Test and reload
+        if ! test_and_reload_nginx; then
+            echo "Error: Failed to apply temporary HTTP configuration"
+            rm -f "$config_file"
+            rm -f "$SITES_ENABLED/${domain}"
+            return 1
+        fi
+
+        # Step 2: Obtain SSL certificate
+        echo ""
+        echo "Step 2/3: Obtaining SSL certificate with certbot..."
         certbot certonly --nginx -d "$domain"
 
         if [ $? -ne 0 ]; then
             echo "Error: Failed to obtain SSL certificate"
+            echo "Cleaning up temporary configuration..."
+            rm -f "$SITES_ENABLED/${domain}"
             rm -f "$config_file"
+            systemctl reload nginx
             return 1
         fi
-    fi
 
-    # Enable site
-    ln -sf "$config_file" "$SITES_ENABLED/${domain}"
+        # Step 3: Apply HTTPS template
+        echo ""
+        echo "Step 3/3: Applying HTTPS configuration..."
+        sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-https.conf" > "$config_file"
 
-    # Test and reload
-    if test_and_reload_nginx; then
-        echo "✓ Site added: $domain"
+        # Apply snippets
+        apply_snippets "$config_file" "$ws_choice" "$acl_choice" "true"
+
+        # Test and reload with HTTPS config
+        if ! test_and_reload_nginx; then
+            echo "Error: Failed to apply HTTPS configuration"
+            return 1
+        fi
+
+        echo "✓ Site added with HTTPS: $domain"
     else
-        rm -f "$SITES_ENABLED/${domain}.conf"
-        return 1
+        # For HTTP: Simple one-step process
+        echo ""
+        echo "Creating HTTP configuration..."
+        sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
+
+        # Apply snippets
+        apply_snippets "$config_file" "$ws_choice" "$acl_choice" "false"
+
+        # Enable site
+        ln -sf "$config_file" "$SITES_ENABLED/${domain}"
+
+        # Test and reload
+        if test_and_reload_nginx; then
+            echo "✓ Site added: $domain"
+        else
+            rm -f "$SITES_ENABLED/${domain}"
+            return 1
+        fi
     fi
 }
 
@@ -238,12 +304,21 @@ modify_site() {
 
             if [ "$current_type" = "HTTPS" ]; then
                 # Convert HTTPS to HTTP
+                echo ""
+                echo "Converting to HTTP..."
                 sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
                 apply_snippets "$config_file" "$ws_choice" "$acl_choice" "false"
-                echo "Converted to HTTP"
+                echo "✓ Converted to HTTP"
             else
                 # Convert HTTP to HTTPS
-                echo "Obtaining SSL certificate..."
+                # Check certbot installation
+                if ! check_certbot; then
+                    return 1
+                fi
+
+                echo ""
+                echo "Step 1/2: Obtaining SSL certificate with certbot..."
+                echo "(Using existing HTTP configuration for verification)"
                 certbot certonly --nginx -d "$domain"
 
                 if [ $? -ne 0 ]; then
@@ -251,9 +326,12 @@ modify_site() {
                     return 1
                 fi
 
+                # Step 2: Apply HTTPS template
+                echo ""
+                echo "Step 2/2: Applying HTTPS configuration..."
                 sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-https.conf" > "$config_file"
                 apply_snippets "$config_file" "$ws_choice" "$acl_choice" "true"
-                echo "Converted to HTTPS"
+                echo "✓ Converted to HTTPS"
             fi
             ;;
         2)
@@ -292,6 +370,7 @@ modify_site() {
 
 main_menu() {
     while true; do
+        clear
         show_sites
         echo "1) Add site"
         echo "2) Delete site"
@@ -306,6 +385,9 @@ main_menu() {
             4) echo "Bye"; exit 0 ;;
             *) echo "Invalid option" ;;
         esac
+
+        # Pause before clearing screen
+        [ "$choice" != "4" ] && read -p "Press Enter to continue..."
     done
 }
 

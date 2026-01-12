@@ -2,33 +2,44 @@
 
 Interactive utility scripts for common system administration tasks.
 
-## Quick Install & Upgrade
+## Quick Install
 
-Download scripts to your home directory:
+**Recommended:** Use the installer script (automatically configures domain and installs to `/usr/local/bin`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/install.sh | sudo bash
+```
+
+Or with wget:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/install.sh | sudo bash
+```
+
+**What the installer does:**
+- Prompts for your domain configuration
+- Lets you choose which scripts to install (nginxh, dnsr, or both)
+- Automatically updates the `DOMAIN` variable in each script
+- Installs scripts to `/usr/local/bin` (removes `.sh` extension)
+- Optionally runs the nginx templates installer if you select nginxh
+
+### Manual Installation
+
+If you prefer manual installation:
 
 ```bash
 # Using curl
 curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/dnsr.sh -o ~/dnsr.sh
 curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/nginxh.sh -o ~/nginxh.sh
 chmod +x ~/dnsr.sh ~/nginxh.sh
-```
 
-Or using wget:
+# Edit DOMAIN variable in each script
+sed -i 's/DOMAIN="domain.tld"/DOMAIN="yourdomain.com"/' ~/dnsr.sh
+sed -i 's/DOMAIN="domain.tld"/DOMAIN="yourdomain.com"/' ~/nginxh.sh
 
-```bash
-# Using wget
-wget -q https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/dnsr.sh -O ~/dnsr.sh
-wget -q https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/nginxh.sh -O ~/nginxh.sh
-chmod +x ~/dnsr.sh ~/nginxh.sh
-```
-
-Add to PATH (optional):
-
-```bash
-mkdir -p ~/scripts
-mv ~/dnsr.sh ~/nginxh.sh ~/scripts/
-echo 'export PATH="$HOME/scripts:$PATH"' >> ~/.bashrc
-source ~/.bashrc
+# Move to system location
+sudo mv ~/dnsr.sh /usr/local/bin/dnsr
+sudo mv ~/nginxh.sh /usr/local/bin/nginxh
 ```
 
 ## Scripts
@@ -45,11 +56,15 @@ DNS record management tool for dnsmasq.
 
 **Usage:**
 ```bash
+# If installed with installer
+sudo dnsr
+
+# If manual installation
 sudo ./dnsr.sh
 ```
 
 **Configuration:**
-Edit `DOMAIN` variable in the script to set your base domain.
+The installer automatically configures your domain. For manual installation, edit `DOMAIN` variable in the script.
 
 ---
 
@@ -68,17 +83,33 @@ Nginx virtual host manager for reverse proxy configurations.
 
 **Usage:**
 ```bash
+# If installed with installer
+sudo nginxh
+
+# If manual installation
 sudo ./nginxh.sh
 ```
 
 **Configuration:**
-- Edit `DOMAIN` variable for your base domain
+- The installer automatically configures your domain
+- For manual installation, edit `DOMAIN` variable in the script
 - Edit `TEMPLATES_DIR` if templates are in a different location
 
 **Requirements:**
 - nginx
-- certbot (for HTTPS sites)
-- Templates from [../nginx/](../nginx/)
+- certbot and python3-certbot-nginx plugin (for HTTPS sites)
+  ```bash
+  sudo apt install certbot python3-certbot-nginx
+  ```
+- Templates from [../nginx/](../nginx/) (installer can set this up automatically)
+
+**HTTPS Setup Process:**
+When creating an HTTPS site, nginxh follows this secure process:
+1. Creates temporary HTTP configuration
+2. Obtains SSL certificate from Let's Encrypt using certbot
+3. Applies HTTPS configuration with the obtained certificate
+
+This ensures proper domain verification and prevents configuration errors.
 
 ## General Notes
 

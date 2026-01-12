@@ -4,7 +4,10 @@ HOSTS_FILE="/etc/dnsmasq.hosts"
 DOMAIN="domain.tld"
 
 check_root() {
-    [ "$EUID" -ne 0 ] && echo "Run as root" && exit 1
+    if [ "$EUID" -ne 0 ]; then
+        echo "Run as root"
+        exit 1
+    fi
 }
 
 show_records() {
@@ -87,6 +90,7 @@ view_record() {
 
 main_menu() {
     while true; do
+        clear
         show_records
         echo "1) Add record"
         echo "2) Delete record"
@@ -101,6 +105,9 @@ main_menu() {
             4) echo "Restarting dnsmasq..."; systemctl restart dnsmasq 2>/dev/null; echo "Bye"; exit 0 ;;
             *) echo "Invalid option" ;;
         esac
+
+        # Pause before clearing screen
+        [ "$choice" != "4" ] && read -p "Press Enter to continue..."
     done
 }
 
