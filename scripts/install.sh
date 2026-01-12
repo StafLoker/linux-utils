@@ -265,5 +265,4 @@ main() {
     done
 }
 
-# Run main function
 main

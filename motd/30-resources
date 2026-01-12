@@ -34,4 +34,5 @@ echo -e "${GREEN}Resources${NC}"
 echo -e "  CPU Load:     ${CPU_COLOR}${CPU_PERCENT}%${NC} (${CPU_CORES} cores)"
 echo -e "  CPU Temp:     ${TEMP}"
 echo -e "  Memory:       ${MEM_COLOR}${MEM_PERCENT}%${NC} (${MEM_USED}M / ${MEM_TOTAL_GB}G)"
+
 echo ""

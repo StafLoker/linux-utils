@@ -13,4 +13,5 @@ echo -e "  Hostname: ${CYAN}${HOSTNAME}${NC}"
 echo -e "  OS:       ${OS}"
 echo -e "  Kernel:   ${KERNEL}"
 echo -e "  Uptime:   ${UPTIME}"
+
 echo ""

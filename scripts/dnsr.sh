@@ -88,7 +88,9 @@ view_record() {
     echo ""
 }
 
-main_menu() {
+main() {
+    check_root
+
     while true; do
         clear
         show_records
@@ -111,5 +113,4 @@ main_menu() {
     done
 }
 
-check_root
-main_menu
+main

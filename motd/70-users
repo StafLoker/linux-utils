@@ -19,4 +19,5 @@ echo -e "${GREEN}Last Logins${NC}"
 last -n 5 -a -F | head -n 5 | while read line; do
     echo "  $line"
 done
+
 echo ""

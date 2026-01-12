@@ -266,6 +266,23 @@ delete_site() {
     echo "✓ Deleted: $domain"
 }
 
+view_site() {
+    read -p "Subdomain to view (@ for root domain): " subdomain
+    domain=$(get_fqdn "$subdomain")
+
+    config_file="$SITES_AVAILABLE/${domain}"
+
+    if [ ! -f "$config_file" ]; then
+        echo "Error: Site $domain not found"
+        return 1
+    fi
+
+    echo ""
+    echo "=== Configuration: $domain ==="
+    echo ""
+    cat "$config_file"
+}
+
 modify_site() {
     read -p "Subdomain to modify (@ for root domain): " subdomain
     domain=$(get_fqdn "$subdomain")
@@ -375,19 +392,21 @@ main_menu() {
         echo "1) Add site"
         echo "2) Delete site"
         echo "3) Modify site"
-        echo "4) Exit"
+        echo "4) View site config"
+        echo "5) Exit"
         read -p "> " choice
 
         case $choice in
             1) add_site ;;
             2) delete_site ;;
             3) modify_site ;;
-            4) echo "Bye"; exit 0 ;;
+            4) view_site ;;
+            5) echo "Bye"; exit 0 ;;
             *) echo "Invalid option" ;;
         esac
 
         # Pause before clearing screen
-        [ "$choice" != "4" ] && read -p "Press Enter to continue..."
+        [ "$choice" != "5" ] && read -p "Press Enter to continue..."
     done
 }
 
