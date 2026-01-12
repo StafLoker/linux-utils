@@ -22,13 +22,4 @@ Utility scripts, configuration files, and templates for Linux system administrat
 
 - **[os/](os/)** - Operating system configuration files
 
-## Features
-
-All installers include:
-- ✅ Interactive menus with visual status indicators
-- ✅ Individual or bulk installation/updates
-- ✅ Non-destructive updates (preserves customizations where applicable)
-- ✅ Automatic dependency checking
-- ✅ Clear error messages and rollback on failure
-
 See individual directories for detailed documentation.
