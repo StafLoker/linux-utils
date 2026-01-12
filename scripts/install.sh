@@ -125,7 +125,7 @@ run_nginx_templates_snippets_installer() {
         echo ""
         echo -e "${YELLOW}Skipped installation of templates and snippets.${NC}"
         echo "You can install it manually later with:"
-        echo "  curl -fsSL $NGINX_INSTALL_SCRIPT | sudo bash"
+        echo "  sudo bash -c \"\$(curl -fsSL $NGINX_INSTALL_SCRIPT)\""
         echo ""
         return
     fi
