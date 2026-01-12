@@ -106,7 +106,7 @@ install_script() {
     return 0
 }
 
-check_nginx_needed() {
+check_nginx_templates_snippets_needed() {
     for script in "${!INSTALLED[@]}"; do
         if [[ "$script" == "nginxh.sh" ]]; then
             return 0
@@ -115,15 +115,15 @@ check_nginx_needed() {
     return 1
 }
 
-run_nginx_installer() {
+run_nginx_templates_snippets_installer() {
     echo -e "${BLUE}Nginx templates and snippets are required for nginxh.${NC}"
     echo ""
-    read -p "Run nginx installer now? [Y/n]: " run_nginx
+    read -p "Run installer for add templates and snippets now? [Y/n]: " run_nginx
     run_nginx=${run_nginx:-Y}
 
     if [[ ! "$run_nginx" =~ ^[Yy]$ ]]; then
         echo ""
-        echo -e "${YELLOW}Skipped nginx installation.${NC}"
+        echo -e "${YELLOW}Skipped installation of templates and snippets.${NC}"
         echo "You can install it manually later with:"
         echo "  curl -fsSL $NGINX_INSTALL_SCRIPT | sudo bash"
         echo ""
@@ -131,18 +131,18 @@ run_nginx_installer() {
     fi
 
     echo ""
-    echo -e "${YELLOW}Running nginx installer...${NC}"
+    echo -e "${YELLOW}Running templates and snippets installer...${NC}"
     echo ""
 
-    # Download and execute nginx installer
-    if $DOWNLOAD_CMD "$NGINX_INSTALL_SCRIPT" | bash; then
+    # Use bash -c "$(...)" to keep stdin available for user input
+    if bash -c "$($DOWNLOAD_CMD "$NGINX_INSTALL_SCRIPT")"; then
         echo ""
-        echo -e "${GREEN}✓ Nginx installation completed${NC}"
+        echo -e "${GREEN}✓ Templates and snippets installation completed${NC}"
     else
         echo ""
-        echo -e "${RED}✗ Nginx installation failed${NC}"
+        echo -e "${RED}✗ Templates and snippets installation failed${NC}"
         echo "You can try manually with:"
-        echo "  curl -fsSL $NGINX_INSTALL_SCRIPT | sudo bash"
+        echo "  sudo bash -c \"\$(curl -fsSL $NGINX_INSTALL_SCRIPT)\""
     fi
     echo ""
 }
@@ -250,8 +250,8 @@ main() {
                 echo ""
                 show_installed_scripts
 
-                if check_nginx_needed; then
-                    run_nginx_installer
+                if check_nginx_templates_snippets_needed; then
+                    run_nginx_templates_snippets_installer
                 fi
 
                 show_usage_info
