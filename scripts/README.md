@@ -7,13 +7,13 @@ Interactive utility scripts for common system administration tasks.
 **Recommended:** Use the installer script (automatically configures domain and installs to `/usr/local/bin`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/install.sh | sudo bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/install.sh)"
 ```
 
 Or with wget:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/install.sh | sudo bash
+sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/install.sh)"
 ```
 
 **What the installer does:**

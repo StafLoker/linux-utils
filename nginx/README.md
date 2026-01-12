@@ -7,13 +7,13 @@ Templates and snippets for nginx reverse proxy configurations.
 **Recommended:** Use the installer script with interactive menu for installation and updates:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/nginx/install.sh | sudo bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/nginx/install.sh)"
 ```
 
 Or using wget:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/StafLoker/linux-utils/main/nginx/install.sh | sudo bash
+sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/StafLoker/linux-utils/main/nginx/install.sh)"
 ```
 
 **What the installer does:**

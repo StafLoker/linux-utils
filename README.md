@@ -2,21 +2,6 @@
 
 Utility scripts, configuration files, and templates for Linux system administration.
 
-## Quick Start
-
-Each component includes an interactive installer with update functionality:
-
-```bash
-# Install/update MOTD scripts
-curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/motd/install.sh | sudo bash
-
-# Install/update Nginx templates & snippets
-curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/nginx/install.sh | sudo bash
-
-# Install/update management scripts (nginxh, dnsr)
-curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/install.sh | sudo bash
-```
-
 ## Contents
 
 - **[motd/](motd/)** - Message of the Day scripts for system information display
