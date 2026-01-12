@@ -60,10 +60,11 @@ add_acl_snippet() {
 
     if [ "$is_https" = "true" ]; then
         # For HTTPS: add in the 443 server block only
-        sed -i '/listen 443/,/location \// { /server_name/a\    include snippets/acl-ip.conf;\n' "$config_file"
+        sed -i '/listen 443/,/location \// { /server_name/a\    include snippets/acl-ip.conf;
+}' "$config_file"
     else
         # For HTTP: add after server_name
-        sed -i '/server_name/a\    include snippets/acl-ip.conf;\n' "$config_file"
+        sed -i '/server_name/a\    include snippets/acl-ip.conf;' "$config_file"
     fi
 }
 
