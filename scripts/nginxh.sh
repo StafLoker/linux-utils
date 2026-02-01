@@ -81,8 +81,8 @@ choose_ssl_method() {
     local has_nginx=$(echo "$plugins_info" | cut -d: -f1)
     local has_dns_porkbun=$(echo "$plugins_info" | cut -d: -f2)
 
-    echo ""
-    echo "=== SSL Certificate Method ==="
+    echo "" >&2
+    echo "=== SSL Certificate Method ===" >&2
 
     local method_count=0
     local nginx_option=""
@@ -91,21 +91,21 @@ choose_ssl_method() {
     if [ "$has_nginx" = "1" ]; then
         method_count=$((method_count + 1))
         nginx_option="$method_count"
-        echo "$method_count) HTTP validation (nginx plugin)"
+        echo "$method_count) HTTP validation (nginx plugin)" >&2
     fi
 
     if [ "$has_dns_porkbun" = "1" ]; then
         method_count=$((method_count + 1))
         dns_option="$method_count"
-        echo "$method_count) DNS challenge (Porkbun)"
+        echo "$method_count) DNS challenge (Porkbun)" >&2
     fi
 
     if [ $method_count -eq 0 ]; then
-        echo "Error: No certbot plugins available"
-        echo ""
-        echo "Install one of:"
-        echo "  - HTTP: sudo apt install python3-certbot-nginx"
-        echo "  - DNS:  sudo pip3 install certbot_dns_porkbun"
+        echo "Error: No certbot plugins available" >&2
+        echo "" >&2
+        echo "Install one of:" >&2
+        echo "  - HTTP: sudo apt install python3-certbot-nginx" >&2
+        echo "  - DNS:  sudo pip3 install certbot_dns_porkbun" >&2
         return 1
     fi
 
