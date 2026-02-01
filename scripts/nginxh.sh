@@ -18,15 +18,148 @@ check_certbot() {
         echo "Install it with: sudo apt install certbot python3-certbot-nginx"
         return 1
     fi
+    return 0
+}
 
-    # Check if nginx plugin is available
-    if ! certbot plugins 2>/dev/null | grep -q "nginx"; then
-        echo "Error: certbot nginx plugin is not installed"
-        echo "Install it with: sudo apt install python3-certbot-nginx"
+# Detect available certbot plugins
+detect_certbot_plugins() {
+    local plugins_output=$(certbot plugins 2>/dev/null)
+    local has_nginx=0
+    local has_dns_porkbun=0
+
+    if echo "$plugins_output" | grep -q "nginx"; then
+        has_nginx=1
+    fi
+
+    if echo "$plugins_output" | grep -q "dns-porkbun"; then
+        has_dns_porkbun=1
+    fi
+
+    echo "$has_nginx:$has_dns_porkbun"
+}
+
+# Configure DNS credentials for Porkbun
+setup_porkbun_credentials() {
+    local creds_file="/etc/letsencrypt/porkbun.ini"
+
+    if [ -f "$creds_file" ]; then
+        echo "Porkbun credentials already configured at $creds_file"
+        return 0
+    fi
+
+    echo ""
+    echo "=== Porkbun DNS Configuration ==="
+    echo "You need API credentials from Porkbun dashboard"
+    echo ""
+    read -p "Porkbun API Key: " api_key
+    read -p "Porkbun API Secret: " api_secret
+
+    if [ -z "$api_key" ] || [ -z "$api_secret" ]; then
+        echo "Error: API credentials cannot be empty"
         return 1
     fi
 
+    # Create letsencrypt directory if it doesn't exist
+    mkdir -p /etc/letsencrypt
+
+    # Write credentials file
+    cat > "$creds_file" <<EOF
+dns_porkbun_key=$api_key
+dns_porkbun_secret=$api_secret
+EOF
+
+    # Set secure permissions
+    chmod 600 "$creds_file"
+
+    echo "✓ Credentials saved to $creds_file"
     return 0
+}
+
+# Ask user which SSL method to use
+choose_ssl_method() {
+    local plugins_info=$(detect_certbot_plugins)
+    local has_nginx=$(echo "$plugins_info" | cut -d: -f1)
+    local has_dns_porkbun=$(echo "$plugins_info" | cut -d: -f2)
+
+    echo ""
+    echo "=== SSL Certificate Method ==="
+
+    local method_count=0
+    local nginx_option=""
+    local dns_option=""
+
+    if [ "$has_nginx" = "1" ]; then
+        method_count=$((method_count + 1))
+        nginx_option="$method_count"
+        echo "$method_count) HTTP validation (nginx plugin)"
+    fi
+
+    if [ "$has_dns_porkbun" = "1" ]; then
+        method_count=$((method_count + 1))
+        dns_option="$method_count"
+        echo "$method_count) DNS challenge (Porkbun)"
+    fi
+
+    if [ $method_count -eq 0 ]; then
+        echo "Error: No certbot plugins available"
+        echo ""
+        echo "Install one of:"
+        echo "  - HTTP: sudo apt install python3-certbot-nginx"
+        echo "  - DNS:  sudo pip3 install certbot_dns_porkbun"
+        return 1
+    fi
+
+    if [ $method_count -eq 1 ]; then
+        # Only one method available, use it automatically
+        if [ "$has_nginx" = "1" ]; then
+            echo "nginx"
+        else
+            echo "dns"
+        fi
+        return 0
+    fi
+
+    # Multiple methods available, ask user
+    read -p "Select method [1-$method_count]: " choice
+
+    if [ "$choice" = "$nginx_option" ]; then
+        echo "nginx"
+    elif [ "$choice" = "$dns_option" ]; then
+        echo "dns"
+    else
+        echo "Error: Invalid choice"
+        return 1
+    fi
+}
+
+# Obtain SSL certificate using selected method
+obtain_ssl_certificate() {
+    local domain="$1"
+    local method="$2"
+
+    case "$method" in
+        nginx)
+            certbot certonly --nginx -d "$domain"
+            return $?
+            ;;
+        dns)
+            if ! setup_porkbun_credentials; then
+                return 1
+            fi
+
+            certbot certonly \
+                --preferred-challenges dns \
+                --authenticator dns-porkbun \
+                --dns-porkbun-credentials /etc/letsencrypt/porkbun.ini \
+                --dns-porkbun-propagation-seconds 60 \
+                -d "$domain"
+            return $?
+            ;;
+        *)
+            echo "Error: Unknown SSL method: $method"
+            return 1
+            ;;
+    esac
 }
 
 # Convert subdomain to FQDN (@ means root domain)
@@ -51,23 +184,6 @@ get_port_from_config() {
     grep "server 127.0.0.1:" "$config_file" | head -1 | sed 's/.*:\([0-9]*\);/\1/'
 }
 
-# Add ACL snippet to config based on type (http/https)
-# We add it after server_name in the main server block
-# For HTTPS: only in the 443 block, not in the redirect block
-add_acl_snippet() {
-    local config_file="$1"
-    local is_https="$2"
-
-    if [ "$is_https" = "true" ]; then
-        # For HTTPS: add in the 443 server block only
-        sed -i '/listen 443/,/location \// { /server_name/a\    include snippets/acl-ip.conf;
-}' "$config_file"
-    else
-        # For HTTP: add after server_name
-        sed -i '/server_name/a\    include snippets/acl-ip.conf;' "$config_file"
-    fi
-}
-
 # Add WebSocket snippet to config
 # Always added inside location / block after proxy.conf
 add_websocket_snippet() {
@@ -79,12 +195,6 @@ add_websocket_snippet() {
 apply_snippets() {
     local config_file="$1"
     local ws_choice="$2"
-    local acl_choice="$3"
-    local is_https="$4"
-
-    if [ "$acl_choice" = "y" ] || [ "$acl_choice" = "Y" ]; then
-        add_acl_snippet "$config_file" "$is_https"
-    fi
 
     if [ "$ws_choice" = "y" ] || [ "$ws_choice" = "Y" ]; then
         add_websocket_snippet "$config_file"
@@ -142,7 +252,6 @@ add_site() {
     read -p "Select type [1-2]: " ssl_choice
 
     read -p "Enable WebSocket support? [y/N]: " ws_choice
-    read -p "Enable IP ACL restrictions? [y/N]: " acl_choice
 
     # Check if templates exist
     if [ ! -f "$TEMPLATES_DIR/template-http.conf" ]; then
@@ -161,6 +270,12 @@ add_site() {
             return 1
         fi
 
+        # Choose SSL method
+        ssl_method=$(choose_ssl_method)
+        if [ $? -ne 0 ] || [ -z "$ssl_method" ]; then
+            return 1
+        fi
+
         use_ssl=true
     else
         use_ssl=false
@@ -169,43 +284,58 @@ add_site() {
     config_file="$SITES_AVAILABLE/${domain}"
 
     if [ "$use_ssl" = true ]; then
-        # For HTTPS: First create HTTP config to get certificate
-        echo ""
-        echo "Step 1/3: Creating temporary HTTP configuration..."
-        sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
+        # For HTTPS with nginx plugin: create temporary HTTP config
+        # For DNS challenge: skip temp config (no HTTP validation needed)
+        if [ "$ssl_method" = "nginx" ]; then
+            echo ""
+            echo "Step 1/3: Creating temporary HTTP configuration..."
+            sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
 
-        # Enable site temporarily
-        ln -sf "$config_file" "$SITES_ENABLED/${domain}"
+            # Enable site temporarily
+            ln -sf "$config_file" "$SITES_ENABLED/${domain}"
 
-        # Test and reload
-        if ! test_and_reload_nginx; then
-            echo "Error: Failed to apply temporary HTTP configuration"
-            rm -f "$config_file"
-            rm -f "$SITES_ENABLED/${domain}"
-            return 1
+            # Test and reload
+            if ! test_and_reload_nginx; then
+                echo "Error: Failed to apply temporary HTTP configuration"
+                rm -f "$config_file"
+                rm -f "$SITES_ENABLED/${domain}"
+                return 1
+            fi
         fi
 
         # Step 2: Obtain SSL certificate
         echo ""
-        echo "Step 2/3: Obtaining SSL certificate with certbot..."
-        certbot certonly --nginx -d "$domain"
+        if [ "$ssl_method" = "nginx" ]; then
+            echo "Step 2/3: Obtaining SSL certificate with certbot..."
+        else
+            echo "Step 1/2: Obtaining SSL certificate with DNS challenge..."
+        fi
 
-        if [ $? -ne 0 ]; then
+        if ! obtain_ssl_certificate "$domain" "$ssl_method"; then
             echo "Error: Failed to obtain SSL certificate"
-            echo "Cleaning up temporary configuration..."
-            rm -f "$SITES_ENABLED/${domain}"
-            rm -f "$config_file"
-            systemctl reload nginx
+            if [ "$ssl_method" = "nginx" ]; then
+                echo "Cleaning up temporary configuration..."
+                rm -f "$SITES_ENABLED/${domain}"
+                rm -f "$config_file"
+                systemctl reload nginx
+            fi
             return 1
         fi
 
         # Step 3: Apply HTTPS template
         echo ""
-        echo "Step 3/3: Applying HTTPS configuration..."
+        if [ "$ssl_method" = "nginx" ]; then
+            echo "Step 3/3: Applying HTTPS configuration..."
+        else
+            echo "Step 2/2: Applying HTTPS configuration..."
+        fi
         sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-https.conf" > "$config_file"
 
         # Apply snippets
-        apply_snippets "$config_file" "$ws_choice" "$acl_choice" "true"
+        apply_snippets "$config_file" "$ws_choice"
+
+        # Enable site
+        ln -sf "$config_file" "$SITES_ENABLED/${domain}"
 
         # Test and reload with HTTPS config
         if ! test_and_reload_nginx; then
@@ -221,7 +351,7 @@ add_site() {
         sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
 
         # Apply snippets
-        apply_snippets "$config_file" "$ws_choice" "$acl_choice" "false"
+        apply_snippets "$config_file" "$ws_choice"
 
         # Enable site
         ln -sf "$config_file" "$SITES_ENABLED/${domain}"
@@ -318,14 +448,13 @@ modify_site() {
             port=$(get_port_from_config "$config_file")
 
             read -p "Enable WebSocket support? [y/N]: " ws_choice
-            read -p "Enable IP ACL restrictions? [y/N]: " acl_choice
 
             if [ "$current_type" = "HTTPS" ]; then
                 # Convert HTTPS to HTTP
                 echo ""
                 echo "Converting to HTTP..."
                 sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
-                apply_snippets "$config_file" "$ws_choice" "$acl_choice" "false"
+                apply_snippets "$config_file" "$ws_choice"
                 echo "✓ Converted to HTTP"
             else
                 # Convert HTTP to HTTPS
@@ -334,12 +463,19 @@ modify_site() {
                     return 1
                 fi
 
-                echo ""
-                echo "Step 1/2: Obtaining SSL certificate with certbot..."
-                echo "(Using existing HTTP configuration for verification)"
-                certbot certonly --nginx -d "$domain"
+                # Choose SSL method
+                ssl_method=$(choose_ssl_method)
+                if [ $? -ne 0 ] || [ -z "$ssl_method" ]; then
+                    return 1
+                fi
 
-                if [ $? -ne 0 ]; then
+                echo ""
+                echo "Step 1/2: Obtaining SSL certificate..."
+                if [ "$ssl_method" = "nginx" ]; then
+                    echo "(Using existing HTTP configuration for verification)"
+                fi
+
+                if ! obtain_ssl_certificate "$domain" "$ssl_method"; then
                     echo "Error: Failed to obtain SSL certificate"
                     return 1
                 fi
@@ -348,23 +484,19 @@ modify_site() {
                 echo ""
                 echo "Step 2/2: Applying HTTPS configuration..."
                 sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-https.conf" > "$config_file"
-                apply_snippets "$config_file" "$ws_choice" "$acl_choice" "true"
+                apply_snippets "$config_file" "$ws_choice"
                 echo "✓ Converted to HTTPS"
             fi
             ;;
         2)
             # Modify snippets only (keep HTTP/HTTPS as is)
             read -p "Enable WebSocket support? [y/N]: " ws_choice
-            read -p "Enable IP ACL restrictions? [y/N]: " acl_choice
 
             # Remove existing snippets
             sed -i '/snippets\/websocket.conf/d' "$config_file"
-            sed -i '/snippets\/acl-ip.conf/d' "$config_file"
 
             # Apply snippets based on choices
-            is_https_flag="false"
-            [ "$current_type" = "HTTPS" ] && is_https_flag="true"
-            apply_snippets "$config_file" "$ws_choice" "$acl_choice" "$is_https_flag"
+            apply_snippets "$config_file" "$ws_choice"
 
             echo "Updated configuration options"
             ;;

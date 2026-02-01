@@ -193,7 +193,54 @@ install_single_script() {
     fi
 }
 
+detect_non_repo_scripts() {
+    local non_repo_scripts=()
+
+    if [ ! -d "$INSTALL_DIR" ]; then
+        return
+    fi
+
+    for file in "$INSTALL_DIR"/*; do
+        [ ! -f "$file" ] && continue
+
+        local basename=$(basename "$file")
+        local is_repo_script=0
+
+        for script in "${SCRIPTS[@]}"; do
+            if [ "$basename" = "$script" ]; then
+                is_repo_script=1
+                break
+            fi
+        done
+
+        if [ $is_repo_script -eq 0 ]; then
+            non_repo_scripts+=("$basename")
+        fi
+    done
+
+    if [ ${#non_repo_scripts[@]} -gt 0 ]; then
+        echo -e "\n${YELLOW}Warning: Found existing scripts not in repository:${NC}"
+        for script in "${non_repo_scripts[@]}"; do
+            echo -e "  ${YELLOW}⚠${NC}  $script"
+        done
+        echo -e "\n${CYAN}These scripts will NOT be modified or removed.${NC}"
+        echo -e "${CYAN}Only repository scripts will be installed/updated.${NC}\n"
+
+        read -p "Continue with installation? [y/N]: " confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}Installation cancelled${NC}"
+            sleep 1
+            return 1
+        fi
+    fi
+    return 0
+}
+
 install_all_scripts() {
+    if ! detect_non_repo_scripts; then
+        return
+    fi
+
     echo ""
     for script in "${SCRIPTS[@]}"; do
         if [ "${INSTALLED[$script]}" != "1" ]; then
