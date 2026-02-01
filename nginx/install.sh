@@ -14,7 +14,6 @@ TEMPLATES=(
 )
 
 SNIPPETS=(
-    "snippets/acl-ip.conf"
     "snippets/options-ssl.conf"
     "snippets/proxy.conf"
     "snippets/websocket.conf"

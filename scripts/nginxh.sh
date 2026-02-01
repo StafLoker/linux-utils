@@ -112,8 +112,10 @@ choose_ssl_method() {
     if [ $method_count -eq 1 ]; then
         # Only one method available, use it automatically
         if [ "$has_nginx" = "1" ]; then
+            echo "Using HTTP validation (nginx plugin)" >&2
             echo "nginx"
         else
+            echo "Using DNS challenge (Porkbun)" >&2
             echo "dns"
         fi
         return 0
@@ -127,7 +129,7 @@ choose_ssl_method() {
     elif [ "$choice" = "$dns_option" ]; then
         echo "dns"
     else
-        echo "Error: Invalid choice"
+        echo "Error: Invalid choice" >&2
         return 1
     fi
 }
