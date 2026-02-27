@@ -186,6 +186,42 @@ get_port_from_config() {
     grep "server 127.0.0.1:" "$config_file" | head -1 | sed 's/.*:\([0-9]*\);/\1/'
 }
 
+# Extract HTTP listen port from existing config
+get_http_port_from_config() {
+    local config_file="$1"
+    grep "listen" "$config_file" | grep -v "ssl" | grep -v "\[::\]" | head -1 | awk '{print $2}' | sed 's/[^0-9]//g'
+}
+
+# Extract HTTPS listen port from existing config
+get_https_port_from_config() {
+    local config_file="$1"
+    grep "listen.*ssl" "$config_file" | grep -v "\[::\]" | head -1 | awk '{print $2}' | sed 's/[^0-9]//g'
+}
+
+# Ask user for HTTP listen port
+ask_http_port() {
+    local http_port
+    echo "" >&2
+    echo "HTTP listen port (default 80, use a different port if needed):" >&2
+    read -p "HTTP port [80]: " http_port
+    if [ -z "$http_port" ]; then
+        http_port="80"
+    fi
+    echo "$http_port"
+}
+
+# Ask user for HTTPS listen port
+ask_https_port() {
+    local https_port
+    echo "" >&2
+    echo "HTTPS listen port (default 443, use e.g. 8443 if nginx-stream already uses 443):" >&2
+    read -p "HTTPS port [443]: " https_port
+    if [ -z "$https_port" ]; then
+        https_port="443"
+    fi
+    echo "$https_port"
+}
+
 # Add WebSocket snippet to config
 # Always added inside location / block after proxy.conf
 add_websocket_snippet() {
@@ -278,8 +314,12 @@ add_site() {
             return 1
         fi
 
+        http_port=$(ask_http_port)
+        https_port=$(ask_https_port)
+
         use_ssl=true
     else
+        http_port=$(ask_http_port)
         use_ssl=false
     fi
 
@@ -291,7 +331,7 @@ add_site() {
         if [ "$ssl_method" = "nginx" ]; then
             echo ""
             echo "Step 1/3: Creating temporary HTTP configuration..."
-            sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
+            sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g; s/<http_port>/$http_port/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
 
             # Enable site temporarily
             ln -sf "$config_file" "$SITES_ENABLED/${domain}"
@@ -331,7 +371,7 @@ add_site() {
         else
             echo "Step 2/2: Applying HTTPS configuration..."
         fi
-        sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-https.conf" > "$config_file"
+        sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g; s/<http_port>/$http_port/g; s/<https_port>/$https_port/g" "$TEMPLATES_DIR/template-https.conf" > "$config_file"
 
         # Apply snippets
         apply_snippets "$config_file" "$ws_choice"
@@ -350,7 +390,7 @@ add_site() {
         # For HTTP: Simple one-step process
         echo ""
         echo "Creating HTTP configuration..."
-        sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
+        sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g; s/<http_port>/$http_port/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
 
         # Apply snippets
         apply_snippets "$config_file" "$ws_choice"
@@ -453,9 +493,10 @@ modify_site() {
 
             if [ "$current_type" = "HTTPS" ]; then
                 # Convert HTTPS to HTTP
+                http_port=$(ask_http_port)
                 echo ""
                 echo "Converting to HTTP..."
-                sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
+                sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g; s/<http_port>/$http_port/g" "$TEMPLATES_DIR/template-http.conf" > "$config_file"
                 apply_snippets "$config_file" "$ws_choice"
                 echo "✓ Converted to HTTP"
             else
@@ -471,6 +512,9 @@ modify_site() {
                     return 1
                 fi
 
+                http_port=$(ask_http_port)
+                https_port=$(ask_https_port)
+
                 echo ""
                 echo "Step 1/2: Obtaining SSL certificate..."
                 if [ "$ssl_method" = "nginx" ]; then
@@ -485,7 +529,7 @@ modify_site() {
                 # Step 2: Apply HTTPS template
                 echo ""
                 echo "Step 2/2: Applying HTTPS configuration..."
-                sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g" "$TEMPLATES_DIR/template-https.conf" > "$config_file"
+                sed "s/<service>/$service/g; s/<port>/$port/g; s/<domain>/$domain/g; s/<http_port>/$http_port/g; s/<https_port>/$https_port/g" "$TEMPLATES_DIR/template-https.conf" > "$config_file"
                 apply_snippets "$config_file" "$ws_choice"
                 echo "✓ Converted to HTTPS"
             fi

@@ -55,55 +55,84 @@ check_nginx() {
 check_certbot() {
     local certbot_installed=true
     local nginx_plugin_installed=true
+    local porkbun_plugin_installed=true
 
-    # Check if certbot is installed
+    # Check certbot
     if ! command -v certbot &> /dev/null; then
         certbot_installed=false
     fi
 
-    # Check if nginx plugin is available
+    # Check plugins (only if certbot exists)
     if [ "$certbot_installed" = true ]; then
-        if ! certbot plugins 2>/dev/null | grep -q "nginx"; then
+        local plugins_output
+        plugins_output=$(certbot plugins 2>/dev/null)
+        if ! echo "$plugins_output" | grep -q "nginx"; then
             nginx_plugin_installed=false
         fi
+        if ! echo "$plugins_output" | grep -q "dns-porkbun"; then
+            porkbun_plugin_installed=false
+        fi
+    else
+        nginx_plugin_installed=false
+        porkbun_plugin_installed=false
     fi
 
-    # Both are installed
-    if [ "$certbot_installed" = true ] && [ "$nginx_plugin_installed" = true ]; then
+    # Show current status
+    echo ""
+    echo -e "${YELLOW}=== Certbot / SSL dependencies ===${NC}"
+    if [ "$certbot_installed" = true ]; then
+        echo -e "  ${GREEN}✓${NC} certbot"
+    else
+        echo -e "  ${RED}✗${NC} certbot"
+    fi
+    if [ "$nginx_plugin_installed" = true ]; then
+        echo -e "  ${GREEN}✓${NC} certbot nginx plugin  (HTTP-01 challenge)"
+    else
+        echo -e "  ${RED}✗${NC} certbot nginx plugin  (HTTP-01 challenge)"
+    fi
+    if [ "$porkbun_plugin_installed" = true ]; then
+        echo -e "  ${GREEN}✓${NC} certbot-dns-porkbun   (DNS-01 challenge)"
+    else
+        echo -e "  ${RED}✗${NC} certbot-dns-porkbun   (DNS-01 challenge)"
+    fi
+
+    # If everything is installed, nothing to do
+    if [ "$certbot_installed" = true ] && [ "$nginx_plugin_installed" = true ] && [ "$porkbun_plugin_installed" = true ]; then
+        echo ""
         return 0
     fi
 
-    # Show what's missing
     echo ""
-    echo -e "${YELLOW}Missing dependencies for HTTPS support:${NC}"
-    if [ "$certbot_installed" = false ]; then
-        echo -e "  ${RED}✗${NC} certbot is not installed"
-    else
-        echo -e "  ${GREEN}✓${NC} certbot is installed"
-    fi
+    echo -e "${YELLOW}Which certbot plugin(s) do you want to install?${NC}"
+    echo "  1) HTTP validation only  (nginx plugin)"
+    echo "  2) DNS challenge only    (Porkbun)"
+    echo "  3) Both plugins"
+    echo "  s) Skip"
+    echo ""
+    read -p "Select [1/2/3/s]: " plugin_choice
+    plugin_choice=${plugin_choice:-s}
 
-    if [ "$certbot_installed" = true ] && [ "$nginx_plugin_installed" = false ]; then
-        echo -e "  ${RED}✗${NC} certbot nginx plugin is not installed"
-    elif [ "$certbot_installed" = true ]; then
-        echo -e "  ${GREEN}✓${NC} certbot nginx plugin is installed"
-    fi
+    local install_nginx_plugin=false
+    local install_porkbun_plugin=false
+
+    case "$plugin_choice" in
+        1) install_nginx_plugin=true ;;
+        2) install_porkbun_plugin=true ;;
+        3) install_nginx_plugin=true; install_porkbun_plugin=true ;;
+        s|S)
+            echo -e "${YELLOW}Skipped certbot installation.${NC}"
+            echo ""
+            return 1
+            ;;
+        *)
+            echo -e "${YELLOW}Invalid choice — skipping certbot installation.${NC}"
+            echo ""
+            return 1
+            ;;
+    esac
 
     echo ""
-    read -p "Install missing dependencies now? [Y/n]: " install_deps
-    install_deps=${install_deps:-Y}
-
-    if [[ ! "$install_deps" =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}Skipped dependency installation.${NC}"
-        echo "You can install them manually with:"
-        echo "  sudo apt update"
-        echo "  sudo apt install certbot python3-certbot-nginx"
-        echo ""
-        return 1
-    fi
-
-    # Install dependencies
-    echo ""
-    echo -e "${CYAN}Installing dependencies...${NC}"
+    echo -e "${CYAN}Installing certbot dependencies...${NC}"
     echo ""
 
     if ! apt update; then
@@ -111,26 +140,42 @@ check_certbot() {
         return 1
     fi
 
+    # Install base certbot if missing
     if [ "$certbot_installed" = false ]; then
         echo -e "${CYAN}Installing certbot...${NC}"
-        if apt install -y certbot python3-certbot-nginx; then
-            echo -e "${GREEN}✓ certbot and nginx plugin installed successfully${NC}"
+        if apt install -y certbot python3-pip; then
+            echo -e "${GREEN}✓ certbot installed${NC}"
         else
             echo -e "${RED}✗ Failed to install certbot${NC}"
             return 1
         fi
-    elif [ "$nginx_plugin_installed" = false ]; then
+    fi
+
+    # Install nginx plugin if requested and missing
+    if [ "$install_nginx_plugin" = true ] && [ "$nginx_plugin_installed" = false ]; then
         echo -e "${CYAN}Installing certbot nginx plugin...${NC}"
         if apt install -y python3-certbot-nginx; then
-            echo -e "${GREEN}✓ certbot nginx plugin installed successfully${NC}"
+            echo -e "${GREEN}✓ certbot nginx plugin installed${NC}"
         else
-            echo -e "${RED}✗ Failed to install nginx plugin${NC}"
+            echo -e "${RED}✗ Failed to install certbot nginx plugin${NC}"
+            return 1
+        fi
+    fi
+
+    # Install porkbun DNS plugin if requested and missing
+    if [ "$install_porkbun_plugin" = true ] && [ "$porkbun_plugin_installed" = false ]; then
+        echo -e "${CYAN}Installing certbot-dns-porkbun...${NC}"
+        if pip3 install certbot_dns_porkbun --break-system-packages; then
+            echo -e "${GREEN}✓ certbot-dns-porkbun installed${NC}"
+        else
+            echo -e "${RED}✗ Failed to install certbot-dns-porkbun${NC}"
+            echo -e "  Try manually: ${YELLOW}sudo pip3 install certbot_dns_porkbun --break-system-packages${NC}"
             return 1
         fi
     fi
 
     echo ""
-    echo -e "${GREEN}✓ All dependencies installed successfully${NC}"
+    echo -e "${GREEN}✓ Certbot dependencies installed successfully${NC}"
     echo ""
     return 0
 }
