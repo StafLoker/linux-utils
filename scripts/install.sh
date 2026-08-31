@@ -23,7 +23,6 @@ NC='\033[0m' # No Color
 
 # Global variables
 declare -A INSTALLED
-USER_DOMAIN=""
 DOWNLOAD_CMD=""
 
 #
@@ -54,29 +53,6 @@ script_exists() {
     [ -f "$INSTALL_DIR/$install_name" ]
 }
 
-prompt_domain() {
-    echo -e "${BLUE}Domain Configuration${NC}"
-    echo ""
-    read -p "Enter your domain (e.g., example.com): " USER_DOMAIN
-
-    if [ -z "$USER_DOMAIN" ]; then
-        echo -e "${RED}Error: Domain cannot be empty${NC}"
-        exit 1
-    fi
-
-    echo ""
-    echo -e "${GREEN}Domain set to: $USER_DOMAIN${NC}"
-    echo ""
-}
-
-update_domain_in_script() {
-    local script_path="$1"
-    local domain="$2"
-
-    # Replace DOMAIN="domain.tld" with the user's domain
-    sed -i "s/DOMAIN=\"domain.tld\"/DOMAIN=\"$domain\"/" "$script_path"
-}
-
 install_script() {
     local script="$1"
     local install_name="${script%.sh}"
@@ -91,10 +67,6 @@ install_script() {
         echo -e "${RED}✗ Failed${NC}"
         return 1
     fi
-
-    echo -n "  Configuring domain... "
-    update_domain_in_script "$temp_file" "$USER_DOMAIN"
-    echo -e "${GREEN}✓${NC}"
 
     echo -n "  Installing to $INSTALL_DIR/$install_name... "
     mv "$temp_file" "$INSTALL_DIR/$install_name"
@@ -185,7 +157,7 @@ show_usage_info() {
         esac
     done
 
-    echo -e "${YELLOW}Note: All scripts are configured for domain: $USER_DOMAIN${NC}"
+    echo -e "${YELLOW}Note: scripts auto-detect domains from existing config; pick or add a domain in the menu.${NC}"
     echo ""
     echo "For more information, see: https://github.com/StafLoker/linux-utils/tree/main/scripts"
 }
@@ -193,8 +165,6 @@ show_usage_info() {
 main() {
     check_root
     detect_download_tool
-
-    prompt_domain
 
     while true; do
         clear

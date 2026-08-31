@@ -3,7 +3,6 @@
 SITES_AVAILABLE="/etc/nginx/sites-available"
 SITES_ENABLED="/etc/nginx/sites-enabled"
 TEMPLATES_DIR="/etc/nginx/templates"
-DOMAIN="domain.tld"
 
 check_root() {
     if [ "$EUID" -ne 0 ]; then
@@ -164,14 +163,66 @@ obtain_ssl_certificate() {
     esac
 }
 
-# Convert subdomain to FQDN (@ means root domain)
+# Convert subdomain + base domain to FQDN (@ means root domain).
 get_fqdn() {
     local subdomain="$1"
-    if [ "$subdomain" = "@" ]; then
-        echo "$DOMAIN"
+    local domain="$2"
+    if [ -z "$subdomain" ] || [ "$subdomain" = "@" ]; then
+        echo "$domain"
     else
-        echo "${subdomain}.${DOMAIN}"
+        echo "${subdomain}.${domain}"
     fi
+}
+
+# List known base domains from existing site config filenames.
+# ponytail: registrable domain = last two labels; good enough for homelab,
+# multi-label TLDs (co.uk) would need a public-suffix list.
+list_domains() {
+    [ -d "$SITES_AVAILABLE" ] || return 0
+    local f
+    for f in "$SITES_AVAILABLE"/*; do
+        [ -e "$f" ] || continue
+        basename "$f" | awk -F. '{if (NF>=2) print $(NF-1)"."$NF}'
+    done | sort -u
+}
+
+# Prompt the user to pick an existing base domain or type a new one.
+# Echoes the chosen domain on stdout.
+pick_domain() {
+    local domains=()
+    while IFS= read -r d; do
+        [ -n "$d" ] && domains+=("$d")
+    done < <(list_domains)
+
+    echo "" >&2
+    echo "=== Select domain ===" >&2
+    local i
+    for i in "${!domains[@]}"; do
+        echo "$((i + 1))) ${domains[$i]}" >&2
+    done
+    echo "n) New domain" >&2
+
+    local choice
+    read -p "> " choice
+
+    if [ "$choice" = "n" ] || [ "$choice" = "N" ]; then
+        local new_domain
+        read -p "New base domain (e.g. example.com): " new_domain
+        if [ -z "$new_domain" ]; then
+            echo "Error: domain cannot be empty" >&2
+            return 1
+        fi
+        echo "$new_domain"
+        return 0
+    fi
+
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#domains[@]}" ]; then
+        echo "${domains[$((choice - 1))]}"
+        return 0
+    fi
+
+    echo "Error: invalid choice" >&2
+    return 1
 }
 
 # Extract service name from existing config
@@ -278,8 +329,9 @@ show_sites() {
 }
 
 add_site() {
+    base_domain=$(pick_domain) || return 1
     read -p "Subdomain (@ for root domain): " subdomain
-    domain=$(get_fqdn "$subdomain")
+    domain=$(get_fqdn "$subdomain" "$base_domain")
 
     read -p "Service name (upstream): " service
     read -p "Backend port: " port
@@ -409,8 +461,9 @@ add_site() {
 }
 
 delete_site() {
+    base_domain=$(pick_domain) || return 1
     read -p "Subdomain to delete (@ for root domain): " subdomain
-    domain=$(get_fqdn "$subdomain")
+    domain=$(get_fqdn "$subdomain" "$base_domain")
 
     config_file="$SITES_AVAILABLE/${domain}"
     enabled_link="$SITES_ENABLED/${domain}"
@@ -440,8 +493,9 @@ delete_site() {
 }
 
 view_site() {
+    base_domain=$(pick_domain) || return 1
     read -p "Subdomain to view (@ for root domain): " subdomain
-    domain=$(get_fqdn "$subdomain")
+    domain=$(get_fqdn "$subdomain" "$base_domain")
 
     config_file="$SITES_AVAILABLE/${domain}"
 
@@ -457,8 +511,9 @@ view_site() {
 }
 
 modify_site() {
+    base_domain=$(pick_domain) || return 1
     read -p "Subdomain to modify (@ for root domain): " subdomain
-    domain=$(get_fqdn "$subdomain")
+    domain=$(get_fqdn "$subdomain" "$base_domain")
 
     config_file="$SITES_AVAILABLE/${domain}"
 

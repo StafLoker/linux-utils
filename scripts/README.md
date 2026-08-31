@@ -17,11 +17,14 @@ sudo bash -c "$(wget -qO- https://raw.githubusercontent.com/StafLoker/linux-util
 ```
 
 **What the installer does:**
-- Prompts for your domain configuration
 - Lets you choose which scripts to install (nginxh, dnsr, or both)
-- Automatically updates the `DOMAIN` variable in each script
 - Installs scripts to `/usr/local/bin` (removes `.sh` extension)
 - Optionally runs the nginx templates installer if you select nginxh
+
+Both scripts are multi-domain. They auto-detect existing base domains from
+your current config (`/etc/dnsmasq.hosts` for `dnsr`, `/etc/nginx/sites-available/`
+for `nginxh`) and let you pick one from a menu or type a new domain. No `DOMAIN`
+variable to configure.
 
 ### Manual Installation
 
@@ -33,11 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/
 curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/nginxh.sh -o ~/nginxh.sh
 chmod +x ~/dnsr.sh ~/nginxh.sh
 
-# Edit DOMAIN variable in each script
-sed -i 's/DOMAIN="domain.tld"/DOMAIN="yourdomain.com"/' ~/dnsr.sh
-sed -i 's/DOMAIN="domain.tld"/DOMAIN="yourdomain.com"/' ~/nginxh.sh
-
-# Move to system location
+# Move to system location (no domain config needed)
 sudo mv ~/dnsr.sh /usr/local/bin/dnsr
 sudo mv ~/nginxh.sh /usr/local/bin/nginxh
 ```
@@ -49,7 +48,10 @@ sudo mv ~/nginxh.sh /usr/local/bin/nginxh
 DNS record management tool for dnsmasq.
 
 **Features:**
+- Multi-domain: pick an existing base domain or add a new one at record creation
+- Auto-detects known domains from `/etc/dnsmasq.hosts`
 - Add/delete DNS records with IPv4 and IPv6 support
+- Rejects duplicate records and requires at least one IP
 - View detailed record information
 - Subdomain notation with `@` for root domain
 - Automatic dnsmasq restart on exit
@@ -63,8 +65,9 @@ sudo dnsr
 sudo ./dnsr.sh
 ```
 
-**Configuration:**
-The installer automatically configures your domain. For manual installation, edit `DOMAIN` variable in the script.
+**New domains:** choose `n) New domain` in the picker, type the base domain,
+then set the first record (`@` or a subdomain). It shows up as a known domain
+on the next run.
 
 ---
 
@@ -73,6 +76,8 @@ The installer automatically configures your domain. For manual installation, edi
 Nginx virtual host manager for reverse proxy configurations.
 
 **Features:**
+- Multi-domain: pick an existing base domain or add a new one per site
+- Auto-detects known domains from `/etc/nginx/sites-available/` filenames
 - Create HTTP or HTTPS sites from templates
 - Automatic SSL certificate generation via certbot
 - WebSocket support toggle
@@ -91,8 +96,7 @@ sudo ./nginxh.sh
 ```
 
 **Configuration:**
-- The installer automatically configures your domain
-- For manual installation, edit `DOMAIN` variable in the script
+- No domain config needed; the site picker lists detected domains and offers "New domain"
 - Edit `TEMPLATES_DIR` if templates are in a different location
 
 **Requirements:**
@@ -114,5 +118,9 @@ This ensures proper domain verification and prevents configuration errors.
 ## General Notes
 
 - Both scripts require root privileges
+- Both are multi-domain: a "Select domain" menu appears before each operation, listing
+  detected base domains plus `n) New domain`
+- Base domain detection uses the last two labels of a name; multi-label TLDs
+  (e.g. `co.uk`) are not split correctly
 - Use `@` to reference the root domain (e.g., `domain.tld` instead of `sub.domain.tld`)
 - Interactive menus guide you through operations
