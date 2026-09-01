@@ -15,6 +15,7 @@ Utility scripts, configuration files, and templates for Linux system administrat
   - Interactive installer with update functionality
 
 - **[scripts/](scripts/)** - System administration utility scripts
+  - **setup-vps** - Automated Debian VPS setup (hardening, users, SSH, firewall, fail2ban, optional Docker/Remnanode)
   - **nginxh** - Nginx site management (add/delete/modify sites with SSL)
   - **dnsr** - DNS records management for dnsmasq
   - Interactive installer with domain configuration

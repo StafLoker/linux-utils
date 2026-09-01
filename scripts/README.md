@@ -43,6 +43,37 @@ sudo mv ~/nginxh.sh /usr/local/bin/nginxh
 
 ## Scripts
 
+### setup-vps.sh
+
+Automated configuration script for a fresh Debian VPS: security hardening, user
+management, SSH/firewall/fail2ban setup, and optional software (Docker, Remnanode).
+
+**Quick setup** (run directly, no install needed):
+
+```bash
+apt install curl -y && bash -c "$(curl -fsSL https://raw.githubusercontent.com/StafLoker/linux-utils/main/scripts/setup-vps.sh)"
+```
+
+**Features:**
+- Full setup mode (all steps in sequence) or interactive mode (pick individual steps)
+- System update, hostname change, root password change
+- Create users with sudo group and SSH key setup
+- Configure SSH (custom port, disable root login and password auth)
+- Firewall: UFW or iptables (with iptables-persistent)
+- fail2ban with SSH jail and IP whitelist
+- Custom MOTD (pulls from the [motd/](../motd/) installer)
+- Optional: Docker, Remnanode
+
+**Usage:**
+```bash
+# Run as root
+sudo bash setup-vps.sh
+```
+
+**Requirements:** Debian, root privileges, `curl`.
+
+---
+
 ### dnsr.sh
 
 DNS record management tool for dnsmasq.
@@ -117,10 +148,13 @@ This ensures proper domain verification and prevents configuration errors.
 
 ## General Notes
 
-- Both scripts require root privileges
-- Both are multi-domain: a "Select domain" menu appears before each operation, listing
+- All scripts require root privileges
+- Interactive menus guide you through operations
+
+### Domain tools (`dnsr`, `nginxh`)
+
+- Multi-domain: a "Select domain" menu appears before each operation, listing
   detected base domains plus `n) New domain`
 - Base domain detection uses the last two labels of a name; multi-label TLDs
   (e.g. `co.uk`) are not split correctly
 - Use `@` to reference the root domain (e.g., `domain.tld` instead of `sub.domain.tld`)
-- Interactive menus guide you through operations
